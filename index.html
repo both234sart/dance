@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Bear Dance Proposal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      /* Hide the default cursor everywhere */
+      body, a, button, input {
+        cursor: none !important;
+      }
+      /* Ensure smooth font rendering */
+      body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+      }
+
+      /* Custom Bear Dance Animation */
+      @keyframes bear-dance {
+        0%, 100% { transform: rotate(-3deg) translateY(0); }
+        50% { transform: rotate(3deg) translateY(-8px); }
+      }
+      
+      .animate-bear-dance {
+        animation: bear-dance 2s infinite ease-in-out;
+      }
+    </style>
+  <script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+  }
+}
+</script>
+</head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>
