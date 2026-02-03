@@ -1,13 +1,12 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import { Point } from '../types';
 
 interface JoystickProps {
-  onStart?: () => void;
   onMove: (vector: Point) => void;
   onStop: () => void;
 }
 
-export const Joystick: React.FC<JoystickProps> = ({ onStart, onMove, onStop }) => {
+export const Joystick: React.FC<JoystickProps> = ({ onMove, onStop }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
@@ -21,7 +20,6 @@ export const Joystick: React.FC<JoystickProps> = ({ onStart, onMove, onStop }) =
     const touch = e.touches[0];
     startPos.current = { x: touch.clientX, y: touch.clientY };
     setActive(true);
-    if (onStart) onStart();
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -62,7 +60,6 @@ export const Joystick: React.FC<JoystickProps> = ({ onStart, onMove, onStop }) =
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
-      // Added mouse listeners for testing on desktop if needed, though mostly for mobile
     >
       {/* Outer Circle */}
       <div 

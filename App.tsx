@@ -2,28 +2,34 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CustomCursor } from './components/CustomCursor';
 import { PrankHand } from './components/PrankHand';
 import { Joystick } from './components/Joystick';
+import { RecoveryCursor } from './components/RecoveryCursor';
 import { Point, PrankState } from './types';
 import { Heart } from 'lucide-react';
 
 const App: React.FC = () => {
   // --- State ---
-  // Real mouse position (from system events) - used for offset calculation
+  // Real mouse position (from system events or joystick) - this controls the "Recovery Hand" when recovering
   const [realMousePos, setRealMousePos] = useState<Point>({ x: -100, y: -100 });
   const realMousePosRef = useRef<Point>({ x: -100, y: -100 });
   
-  // Visual cursor position (what the user sees)
+  // Visual cursor position (The Index Finger) - detached from real mouse during recovery
   const [visualCursorPos, setVisualCursorPos] = useState<Point>({ x: -100, y: -100 });
   
-  // Hand position
+  // Hand position (Bear paw)
   const [handPos, setHandPos] = useState<Point>({ x: -200, y: -200 }); // Start offscreen
   
   // Prank State Machine
   const [prankState, setPrankState] = useState<PrankState>(PrankState.IDLE);
   
+  // Recovery Mode State
+  const [isRecovering, setIsRecovering] = useState(false);
+  const droppedCursorPosRef = useRef<Point>({ x: 0, y: 0 }); // Where the bear dropped the index finger
+  
   // Refs for logic
   const noButtonRef = useRef<HTMLButtonElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
-  const prankStateRef = useRef<PrankState>(PrankState.IDLE); // Ref to access state inside animation frame
+  const prankStateRef = useRef<PrankState>(PrankState.IDLE);
+  const isRecoveringRef = useRef<boolean>(false);
   const animationFrameRef = useRef<number>(0);
   const targetDragPos = useRef<Point>({ x: 0, y: 0 });
   const didAccept = useRef<boolean>(false);
@@ -33,16 +39,20 @@ const App: React.FC = () => {
   const joystickVectorRef = useRef<Point>({ x: 0, y: 0 });
   const isJoystickActiveRef = useRef<boolean>(false);
   
-  // Offset between real mouse and visual cursor (created when hand drags mouse)
+  // Offset between real mouse and visual cursor (used in normal mode)
   const cursorOffsetRef = useRef<Point>({ x: 0, y: 0 });
 
-  // Custom hover state for Yes button since real mouse isn't over it
+  // Custom hover state for Yes button
   const [isYesHovered, setIsYesHovered] = useState(false);
 
   // Sync ref with state
   useEffect(() => {
     prankStateRef.current = prankState;
   }, [prankState]);
+
+  useEffect(() => {
+    isRecoveringRef.current = isRecovering;
+  }, [isRecovering]);
 
   // Initial Center Position for Mobile
   useEffect(() => {
@@ -57,25 +67,20 @@ const App: React.FC = () => {
   // --- Handlers ---
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
-    // If joystick is being used, ignore mouse move to prevent conflict/jitter
+    // If joystick is being used, ignore mouse move
     if (isJoystickActiveRef.current) return;
 
     const newPos = { x: e.clientX, y: e.clientY };
     setRealMousePos(newPos);
     realMousePosRef.current = newPos;
 
-    // If we are IDLE or COOLDOWN, visual cursor follows real mouse + offset
-    if (prankStateRef.current === PrankState.IDLE || prankStateRef.current === PrankState.COOLDOWN) {
+    // Normal behavior (Index finger follows mouse with offset)
+    if (!isRecoveringRef.current && (prankStateRef.current === PrankState.IDLE || prankStateRef.current === PrankState.COOLDOWN)) {
       setVisualCursorPos({
         x: newPos.x + cursorOffsetRef.current.x,
         y: newPos.y + cursorOffsetRef.current.y
       });
     }
-  }, []);
-
-  const handleJoystickStart = useCallback(() => {
-    // When the user touches the joystick again, snap the fake mouse back to the real cursor position
-    cursorOffsetRef.current = { x: 0, y: 0 };
   }, []);
 
   const handleJoystickMove = useCallback((vector: Point) => {
@@ -93,29 +98,26 @@ const App: React.FC = () => {
     setIsSuccess(true);
   }, []);
 
-  // Reset offset on mouse enter (re-entering the page)
+  // Reset offset on mouse enter (re-entering the page) - ONLY if not recovering
   useEffect(() => {
     const handleMouseEnter = () => {
-      // Reset the offset so the cursor snaps back to the real mouse
-      cursorOffsetRef.current = { x: 0, y: 0 };
+      if (!isRecoveringRef.current) {
+        cursorOffsetRef.current = { x: 0, y: 0 };
+      }
     };
-
     document.documentElement.addEventListener('mouseenter', handleMouseEnter);
     return () => document.documentElement.removeEventListener('mouseenter', handleMouseEnter);
   }, []);
 
-  // Global click handler to support offset cursor and mobile tap
+  // Global click handler
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      // If clicking on joystick, don't trigger success logic check
       if ((e.target as HTMLElement).closest('.touch-none')) return;
-
       if (isYesHovered) {
         handleSuccess();
       }
     };
     window.addEventListener('click', handleClick);
-    // Touch end on mobile often triggers click, but we'll listen to click for consistency
     return () => window.removeEventListener('click', handleClick);
   }, [isYesHovered, handleSuccess]);
 
@@ -132,23 +134,21 @@ const App: React.FC = () => {
       if (didAccept.current) return;
 
       const currentState = prankStateRef.current;
+      const recovering = isRecoveringRef.current;
       
       // --- Joystick Logic ---
       if (isJoystickActiveRef.current) {
-        // Disable joystick control during the "grab" phase (GRABBING and DRAGGING)
-        // We allow LEAVING so control returns immediately after drop, 
-        // but since offset isn't reset until next touch, it maintains the drop position relative logic.
+        // Joystick Disabled ONLY during Grab/Drag
         const isControlDisabled = currentState === PrankState.GRABBING || currentState === PrankState.DRAGGING;
         
         if (!isControlDisabled) {
-            const speed = 8; // Pixels per frame
+            const speed = 8;
             const dx = joystickVectorRef.current.x * speed;
             const dy = joystickVectorRef.current.y * speed;
             
             let newX = realMousePosRef.current.x + dx;
             let newY = realMousePosRef.current.y + dy;
 
-            // Clamp to screen
             newX = Math.max(0, Math.min(window.innerWidth, newX));
             newY = Math.max(0, Math.min(window.innerHeight, newY));
 
@@ -156,15 +156,32 @@ const App: React.FC = () => {
             realMousePosRef.current = newPos;
             setRealMousePos(newPos);
 
-            // Update visual cursor if not being pranked (or if in LEAVING/COOLDOWN/IDLE)
-            // Note: In LEAVING, visual cursor logic below overrides this if we rely on visualCursorPos setting here,
-            // but the logic below for LEAVING sets visualCursorPos based on realMousePos + offset.
-            if (currentState === PrankState.IDLE || currentState === PrankState.COOLDOWN) {
+            // If not recovering and not pranked, update visual cursor
+            if (!recovering && (currentState === PrankState.IDLE || currentState === PrankState.COOLDOWN)) {
                 setVisualCursorPos({
                     x: newPos.x + cursorOffsetRef.current.x,
                     y: newPos.y + cursorOffsetRef.current.y
                 });
             }
+        }
+      }
+
+      // --- Recovery Logic (Connecting the two cursors) ---
+      if (recovering) {
+        // Visual Cursor (Index Finger) stays dropped
+        setVisualCursorPos(droppedCursorPosRef.current);
+        
+        // Check distance between Real Mouse (Recovery Hand) and Dropped Index
+        const distX = realMousePosRef.current.x - droppedCursorPosRef.current.x;
+        const distY = realMousePosRef.current.y - droppedCursorPosRef.current.y;
+        const dist = Math.sqrt(distX * distX + distY * distY);
+
+        // Snap distance
+        if (dist < 40) {
+            // LATCH!
+            setIsRecovering(false);
+            cursorOffsetRef.current = { x: 0, y: 0 }; // Reset offset
+            setVisualCursorPos(realMousePosRef.current); // Snap together
         }
       }
 
@@ -176,24 +193,27 @@ const App: React.FC = () => {
         return;
       }
 
-      // Check Yes Button Hover (Visual Collision)
+      // Check Yes Button Hover
+      // Note: If recovering, user cannot click yes until they retrieve the cursor
+      const activeCursorPos = recovering ? realMousePosRef.current : visualCursorPos;
+      
       const yesRect = yesBtn.getBoundingClientRect();
       const isOverYes = 
-        visualCursorPos.x >= yesRect.left && 
-        visualCursorPos.x <= yesRect.right && 
-        visualCursorPos.y >= yesRect.top && 
-        visualCursorPos.y <= yesRect.bottom;
+        !recovering && // Can't click YES with the grabbing hand
+        activeCursorPos.x >= yesRect.left && 
+        activeCursorPos.x <= yesRect.right && 
+        activeCursorPos.y >= yesRect.top && 
+        activeCursorPos.y <= yesRect.bottom;
       
-      // We use a ref/state check to avoid setting state loop constantly
       if (isOverYes !== isYesHovered) {
          setIsYesHovered(isOverYes);
       }
 
-      // 1. Check Trigger Condition (Only if IDLE)
-      if (currentState === PrankState.IDLE) {
+      // --- Prank Logic ---
+
+      // 1. Check Trigger
+      if (currentState === PrankState.IDLE && !recovering) {
         const noRect = noBtn.getBoundingClientRect();
-        
-        // Strict hitbox check: Only trigger if visual cursor overlaps the button
         const isOverNo = 
             visualCursorPos.x >= noRect.left && 
             visualCursorPos.x <= noRect.right && 
@@ -201,100 +221,76 @@ const App: React.FC = () => {
             visualCursorPos.y <= noRect.bottom;
 
         if (isOverNo) {
-            // TRIGGER PRANK
             setPrankState(PrankState.ENTERING);
-            // Initialize hand position off-screen (right side)
             setHandPos({ x: window.innerWidth + 150, y: visualCursorPos.y + 50 });
         }
       }
 
-      // 2. Handle Animation States
+      // 2. Animation States
       if (currentState === PrankState.ENTERING) {
-        // Move hand towards visual cursor
         const dx = visualCursorPos.x - handPos.x;
         const dy = visualCursorPos.y - handPos.y;
-        
-        // SLOWED DOWN: Was 0.1, now 0.08
-        setHandPos(prev => ({
-            x: prev.x + dx * 0.08,
-            y: prev.y + dy * 0.08
-        }));
+        setHandPos(prev => ({ x: prev.x + dx * 0.08, y: prev.y + dy * 0.08 }));
 
-        // If close enough, Grab
         if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
             setPrankState(PrankState.GRABBING);
-            // Determine a random safe spot away from the button
             const safeX = Math.random() > 0.5 ? window.innerWidth * 0.1 : window.innerWidth * 0.9;
             const safeY = Math.random() * (window.innerHeight * 0.8);
             targetDragPos.current = { x: safeX, y: safeY };
-            
-            // Pause to show the grab action
-            setTimeout(() => {
-                setPrankState(PrankState.DRAGGING);
-            }, 300);
+            setTimeout(() => setPrankState(PrankState.DRAGGING), 300);
         }
       } 
       else if (currentState === PrankState.GRABBING) {
-        // Hand stays on cursor
         setHandPos(visualCursorPos);
       }
       else if (currentState === PrankState.DRAGGING) {
-        // Move Hand towards safe spot
         const tx = targetDragPos.current.x;
         const ty = targetDragPos.current.y;
         
         const hdx = tx - handPos.x;
         const hdy = ty - handPos.y;
 
-        // SLOWED DOWN: Was 0.08, now 0.02
         const nextHandX = handPos.x + hdx * 0.02;
         const nextHandY = handPos.y + hdy * 0.02;
 
         setHandPos({ x: nextHandX, y: nextHandY });
-        
-        // Cursor is stuck to hand
         setVisualCursorPos({ x: nextHandX, y: nextHandY });
 
-        // If we reached target
+        // If reached drop target
         const distToTarget = Math.sqrt(hdx*hdx + hdy*hdy);
         if (distToTarget < 20) {
-            // CALCULATE OFFSET HERE
-            cursorOffsetRef.current = {
-                x: nextHandX - realMousePosRef.current.x,
-                y: nextHandY - realMousePosRef.current.y
-            };
-
+            // DROP IT
+            droppedCursorPosRef.current = { x: nextHandX, y: nextHandY };
+            
+            // Start Leaving
             setPrankState(PrankState.LEAVING);
+            
+            // Activate Recovery Mode immediately
+            setIsRecovering(true);
+            
+            // Reset cooldown eventually
             setTimeout(() => {
                 setPrankState(PrankState.COOLDOWN);
-                // Reset cooldown after a bit
                 setTimeout(() => setPrankState(PrankState.IDLE), 1500);
             }, 500);
         }
       }
       else if (currentState === PrankState.LEAVING) {
-        // Hand moves away
-        // SLOWED DOWN: Was +15, now +5
-        setHandPos(prev => ({
-            x: prev.x + 5,
-            y: prev.y + 5
-        }));
-
-        setVisualCursorPos({
-            x: realMousePosRef.current.x + cursorOffsetRef.current.x,
-            y: realMousePosRef.current.y + cursorOffsetRef.current.y
-        });
+        // Hand moves away, but Cursor stays dropped
+        setHandPos(prev => ({ x: prev.x + 5, y: prev.y + 5 }));
+        
+        // Visual cursor forced to stay at drop point
+        setVisualCursorPos(droppedCursorPosRef.current);
       }
 
       animationFrameRef.current = requestAnimationFrame(loop);
     };
 
     animationFrameRef.current = requestAnimationFrame(loop);
-
     return () => {
         if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [realMousePos, visualCursorPos, handPos, isYesHovered]); // Dependencies
+  }, [realMousePos, visualCursorPos, handPos, isYesHovered]);
 
   // --- Render ---
 
@@ -321,7 +317,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-blue-50 overflow-hidden relative selection:bg-pink-200">
-      {/* Background Elements */}
       <div className="absolute top-10 left-10 text-pink-200 opacity-50 animate-pulse">
         <Heart size={48} className="fill-pink-200 text-pink-200" />
       </div>
@@ -329,11 +324,16 @@ const App: React.FC = () => {
         <Heart size={64} className="fill-blue-200 text-blue-200" />
       </div>
 
-      {/* The Visual Custom Cursor */}
+      {/* 1. The Index Finger Cursor (Visual) */}
       <CustomCursor 
         position={visualCursorPos} 
         isGrabbing={prankState === PrankState.GRABBING || prankState === PrankState.DRAGGING} 
       />
+
+      {/* 2. The Recovery Hand Cursor (Real) - Only shows when recovering */}
+      {isRecovering && (
+        <RecoveryCursor position={realMousePos} />
+      )}
 
       {/* The Prank Hand */}
       <PrankHand 
@@ -342,14 +342,13 @@ const App: React.FC = () => {
       />
 
       {/* Joystick for Mobile */}
-      <Joystick onStart={handleJoystickStart} onMove={handleJoystickMove} onStop={handleJoystickStop} />
+      <Joystick onMove={handleJoystickMove} onStop={handleJoystickStop} />
 
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center min-h-screen px-4 z-10 relative">
         <div className="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-white/50 max-w-md w-full text-center transform transition-transform hover:scale-[1.02]">
             
             <div className="mb-6 relative group flex justify-center">
-                {/* Replaced Image with the specific Cute Mocha Bear GIF */}
                 <img 
                     src="https://media.tenor.com/z9x_RClS584AAAAM/cute-mocha.gif" 
                     alt="Cute Mocha Bear Dancing"
@@ -386,14 +385,13 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Helper text for context if needed */}
       <div className="absolute bottom-4 w-full text-center text-black text-sm opacity-60 pointer-events-none md:block hidden">
         (Kom click "No"...)
       </div>
       
       {/* Mobile Hint */}
       <div className="absolute top-4 w-full text-center text-pink-600 text-xs font-bold md:hidden animate-pulse pointer-events-none">
-        Use joystick to move cursor & tap screen to click!
+        {isRecovering ? "Grab your cursor back!" : "Use joystick to move cursor!"}
       </div>
     </div>
   );
