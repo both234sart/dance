@@ -143,7 +143,7 @@ const App: React.FC = () => {
         
         if (!isControlDisabled) {
             // Speed depends on state: very slow (0.5) when recovering, normal (8) otherwise
-            const speed = recovering ? 0.9 : 8;
+            const speed = recovering ? 1.5 : 8;
             const dx = joystickVectorRef.current.x * speed;
             const dy = joystickVectorRef.current.y * speed;
             
