@@ -73,6 +73,11 @@ const App: React.FC = () => {
     }
   }, []);
 
+  const handleJoystickStart = useCallback(() => {
+    // When the user touches the joystick again, snap the fake mouse back to the real cursor position
+    cursorOffsetRef.current = { x: 0, y: 0 };
+  }, []);
+
   const handleJoystickMove = useCallback((vector: Point) => {
     joystickVectorRef.current = vector;
     isJoystickActiveRef.current = true;
@@ -130,27 +135,36 @@ const App: React.FC = () => {
       
       // --- Joystick Logic ---
       if (isJoystickActiveRef.current) {
-        const speed = 8; // Pixels per frame
-        const dx = joystickVectorRef.current.x * speed;
-        const dy = joystickVectorRef.current.y * speed;
+        // Disable joystick control during the "grab" phase (GRABBING and DRAGGING)
+        // We allow LEAVING so control returns immediately after drop, 
+        // but since offset isn't reset until next touch, it maintains the drop position relative logic.
+        const isControlDisabled = currentState === PrankState.GRABBING || currentState === PrankState.DRAGGING;
         
-        let newX = realMousePosRef.current.x + dx;
-        let newY = realMousePosRef.current.y + dy;
+        if (!isControlDisabled) {
+            const speed = 8; // Pixels per frame
+            const dx = joystickVectorRef.current.x * speed;
+            const dy = joystickVectorRef.current.y * speed;
+            
+            let newX = realMousePosRef.current.x + dx;
+            let newY = realMousePosRef.current.y + dy;
 
-        // Clamp to screen
-        newX = Math.max(0, Math.min(window.innerWidth, newX));
-        newY = Math.max(0, Math.min(window.innerHeight, newY));
+            // Clamp to screen
+            newX = Math.max(0, Math.min(window.innerWidth, newX));
+            newY = Math.max(0, Math.min(window.innerHeight, newY));
 
-        const newPos = { x: newX, y: newY };
-        realMousePosRef.current = newPos;
-        setRealMousePos(newPos);
+            const newPos = { x: newX, y: newY };
+            realMousePosRef.current = newPos;
+            setRealMousePos(newPos);
 
-        // Update visual cursor if not being pranked
-        if (currentState === PrankState.IDLE || currentState === PrankState.COOLDOWN) {
-            setVisualCursorPos({
-                x: newPos.x + cursorOffsetRef.current.x,
-                y: newPos.y + cursorOffsetRef.current.y
-            });
+            // Update visual cursor if not being pranked (or if in LEAVING/COOLDOWN/IDLE)
+            // Note: In LEAVING, visual cursor logic below overrides this if we rely on visualCursorPos setting here,
+            // but the logic below for LEAVING sets visualCursorPos based on realMousePos + offset.
+            if (currentState === PrankState.IDLE || currentState === PrankState.COOLDOWN) {
+                setVisualCursorPos({
+                    x: newPos.x + cursorOffsetRef.current.x,
+                    y: newPos.y + cursorOffsetRef.current.y
+                });
+            }
         }
       }
 
@@ -295,6 +309,7 @@ const App: React.FC = () => {
                  YAY! Ban Girlfriend hx!
              </h1>
              <p className="text-xl text-pink-400">Come Date with me!</p>
+             <p className="text-xl text-pink-400">I Love You Bby😘!</p>
              <img 
                 src="https://media.tenor.com/H-B9Kuj4gwAAAAAM/happy-dance.gif" 
                 alt="Happy Bear Dancing"
@@ -327,7 +342,7 @@ const App: React.FC = () => {
       />
 
       {/* Joystick for Mobile */}
-      <Joystick onMove={handleJoystickMove} onStop={handleJoystickStop} />
+      <Joystick onStart={handleJoystickStart} onMove={handleJoystickMove} onStop={handleJoystickStop} />
 
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center min-h-screen px-4 z-10 relative">

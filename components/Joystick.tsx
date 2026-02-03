@@ -2,11 +2,12 @@ import React, { useRef, useState, useEffect } from 'react';
 import { Point } from '../types';
 
 interface JoystickProps {
+  onStart?: () => void;
   onMove: (vector: Point) => void;
   onStop: () => void;
 }
 
-export const Joystick: React.FC<JoystickProps> = ({ onMove, onStop }) => {
+export const Joystick: React.FC<JoystickProps> = ({ onStart, onMove, onStop }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [position, setPosition] = useState<Point>({ x: 0, y: 0 });
   const [active, setActive] = useState(false);
@@ -20,6 +21,7 @@ export const Joystick: React.FC<JoystickProps> = ({ onMove, onStop }) => {
     const touch = e.touches[0];
     startPos.current = { x: touch.clientX, y: touch.clientY };
     setActive(true);
+    if (onStart) onStart();
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -77,7 +79,6 @@ export const Joystick: React.FC<JoystickProps> = ({ onMove, onStop }) => {
         />
       </div>
       <div className="absolute -top-8 w-full text-center text-xs font-bold text-gray-400 pointer-events-none whitespace-nowrap right-0">
-        Move Cursor
       </div>
     </div>
   );
