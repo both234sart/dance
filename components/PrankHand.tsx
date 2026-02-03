@@ -27,7 +27,8 @@ export const PrankHand: React.FC<PrankHandProps> = ({ position, state }) => {
         style={{
             // When grabbing, we scale down slightly to simulate grip pressure
             // We translate to center the paw on the cursor (x-50%, y-50% roughly)
-            transform: `translate(-50%, -40%) rotate(-25deg) scale(${isGrabbing ? 0.9 : 1})`
+            // REDUCED SCALE: Added an extra scale(0.6) to make the overall hand smaller as requested
+            transform: `translate(-50%, -40%) rotate(-25deg) scale(${isGrabbing ? 0.54 : 0.6})`
         }}
       >
         {/* Bear Paw SVG */}

@@ -13,42 +13,32 @@ export const CustomCursor: React.FC<CustomCursorProps> = ({ position, isGrabbing
       style={{
         left: 0,
         top: 0,
-        // Center the bear face on the cursor position
-        transform: `translate3d(${position.x - 16}px, ${position.y - 16}px, 0) scale(${isGrabbing ? 0.9 : 1})`,
+        // The index finger tip is at (11.5, 1) in the 24x30 viewBox.
+        // We are scaling by 2x (width 48, height 60).
+        // So the visual tip is at (11.5 * 2, 1 * 2) = (23, 2).
+        transform: `translate3d(${position.x - 23}px, ${position.y - 2}px, 0) scale(${isGrabbing ? 0.9 : 1})`,
       }}
     >
       <svg
-        width="40"
-        height="40"
-        viewBox="0 0 32 32"
+        width="48"
+        height="60"
+        viewBox="0 0 24 30"
         fill="none"
-        style={{ filter: 'drop-shadow(1px 2px 3px rgba(0,0,0,0.3))' }}
+        xmlns="http://www.w3.org/2000/svg"
+        style={{ filter: 'drop-shadow(2px 2px 3px rgba(0,0,0,0.2))' }}
       >
-        {/* Ears */}
-        <circle cx="6" cy="6" r="5" fill="#8B4513" />
-        <circle cx="26" cy="6" r="5" fill="#8B4513" />
-        <circle cx="6" cy="6" r="2.5" fill="#D2B48C" />
-        <circle cx="26" cy="6" r="2.5" fill="#D2B48C" />
-        
-        {/* Head */}
-        <circle cx="16" cy="17" r="13" fill="#A0522D" stroke="#5D4037" strokeWidth="1" />
-        
-        {/* Snout Area */}
-        <ellipse cx="16" cy="21" rx="5" ry="4" fill="#D2B48C" />
-        
-        {/* Nose */}
-        <ellipse cx="16" cy="20" rx="2" ry="1.5" fill="#2D1B10" />
-        
-        {/* Mouth */}
-        <path d="M16 21.5V23M14.5 24Q16 25 17.5 24" stroke="#2D1B10" strokeWidth="1" strokeLinecap="round" />
-        
-        {/* Eyes */}
-        <circle cx="11.5" cy="15" r="1.5" fill="#000" />
-        <circle cx="20.5" cy="15" r="1.5" fill="#000" />
-        
-        {/* Shine in eyes */}
-        <circle cx="12" cy="14.5" r="0.5" fill="#FFF" />
-        <circle cx="21" cy="14.5" r="0.5" fill="#FFF" />
+        <path
+          d="M11.5 1C11.5 1 9.5 1 9.5 3V12C9.5 12 6 11 4 13.5C2 16 5 19 6 20L7 25H16L17 20C18.5 19 20 17 19 14.5C18.5 13.5 17 13.5 16.5 13.5V11.5C18 11 18 9 16.5 8.5C16 8.3 15.5 8.5 15.5 8.5V6.5C17 6 17 4 15.5 3.5C15 3.3 14.5 3.5 14.5 3.5V2.5C14.5 0.5 11.5 0.5 11.5 1Z"
+          fill="white"
+          stroke="black"
+          strokeWidth="1.5"
+          strokeLinejoin="round"
+          strokeLinecap="round"
+        />
+        {/* Simple detail lines */}
+        <line x1="11.5" y1="20" x2="11.5" y2="24" stroke="black" strokeWidth="1" strokeLinecap="round" />
+        <line x1="9" y1="20" x2="9" y2="23" stroke="black" strokeWidth="1" strokeLinecap="round" />
+        <line x1="14" y1="20" x2="14" y2="23" stroke="black" strokeWidth="1" strokeLinecap="round" />
       </svg>
     </div>
   );

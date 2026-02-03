@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CustomCursor } from './components/CustomCursor';
 import { PrankHand } from './components/PrankHand';
 import { Point, PrankState } from './types';
-import { Heart, Stars } from 'lucide-react';
+import { Heart } from 'lucide-react';
 
 const App: React.FC = () => {
   // --- State ---
@@ -23,7 +23,7 @@ const App: React.FC = () => {
   const noButtonRef = useRef<HTMLButtonElement>(null);
   const yesButtonRef = useRef<HTMLButtonElement>(null);
   const prankStateRef = useRef<PrankState>(PrankState.IDLE); // Ref to access state inside animation frame
-  const animationFrameRef = useRef<number>();
+  const animationFrameRef = useRef<number>(0);
   const targetDragPos = useRef<Point>({ x: 0, y: 0 });
   const didAccept = useRef<boolean>(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -141,10 +141,10 @@ const App: React.FC = () => {
         const dx = visualCursorPos.x - handPos.x;
         const dy = visualCursorPos.y - handPos.y;
         
-        // SLOWED DOWN: Was 0.1, now 0.03
+        // SLOWED DOWN: Was 0.1, now 0.08
         setHandPos(prev => ({
-            x: prev.x + dx * 0.03,
-            y: prev.y + dy * 0.03
+            x: prev.x + dx * 0.08,
+            y: prev.y + dy * 0.08
         }));
 
         // If close enough, Grab
@@ -233,9 +233,9 @@ const App: React.FC = () => {
                  <Heart className="w-24 h-24 text-red-500 fill-red-500" />
              </div>
              <h1 className="text-4xl md:text-6xl font-bold text-pink-600 text-center mb-4">
-                 YAY! I Knew It!
+                 YAY! Ban Girlfriend hx!
              </h1>
-             <p className="text-xl text-pink-400">Can't wait for our dance! 💃🐻</p>
+             <p className="text-xl text-pink-400">Come Date with me!</p>
              <img 
                 src="https://media.tenor.com/H-B9Kuj4gwAAAAAM/happy-dance.gif" 
                 alt="Happy Bear Dancing"
@@ -249,10 +249,10 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-blue-50 overflow-hidden relative selection:bg-pink-200">
       {/* Background Elements */}
       <div className="absolute top-10 left-10 text-pink-200 opacity-50 animate-pulse">
-        <Stars size={48} />
+        <Heart size={48} className="fill-pink-200 text-pink-200" />
       </div>
       <div className="absolute bottom-10 right-10 text-blue-200 opacity-50 animate-pulse delay-700">
-        <Stars size={64} />
+        <Heart size={64} className="fill-blue-200 text-blue-200" />
       </div>
 
       {/* The Visual Custom Cursor */}
@@ -284,7 +284,7 @@ const App: React.FC = () => {
                 Will you be my girlfriend?
             </h1>
             <p className="text-gray-500 mb-8">
-                Please say yes! I promise I have great dance moves.
+                Please say yes!
             </p>
 
             <div className="flex justify-center gap-8 relative">
@@ -296,14 +296,14 @@ const App: React.FC = () => {
                         : 'bg-green-500 scale-100'
                     }`}
                 >
-                    Yes, absolutely!
+                    Yes🤩!
                 </button>
 
                 <button
                     ref={noButtonRef}
                     className="px-8 py-3 bg-red-500 text-white font-bold rounded-full shadow-lg transition-colors focus:outline-none opacity-90 cursor-none"
                 >
-                    No
+                    No🥺
                 </button>
             </div>
         </div>
@@ -311,7 +311,7 @@ const App: React.FC = () => {
 
       {/* Helper text for context if needed */}
       <div className="absolute bottom-4 w-full text-center text-gray-400 text-sm opacity-60">
-        (Try to click "No"...)
+        (Kom click "No"...)
       </div>
     </div>
   );
