@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { CustomCursor } from './components/CustomCursor';
 import { PrankHand } from './components/PrankHand';
+import { Joystick } from './components/Joystick';
 import { Point, PrankState } from './types';
 import { Heart } from 'lucide-react';
 
@@ -28,6 +29,10 @@ const App: React.FC = () => {
   const didAccept = useRef<boolean>(false);
   const [isSuccess, setIsSuccess] = useState(false);
   
+  // Joystick Refs
+  const joystickVectorRef = useRef<Point>({ x: 0, y: 0 });
+  const isJoystickActiveRef = useRef<boolean>(false);
+  
   // Offset between real mouse and visual cursor (created when hand drags mouse)
   const cursorOffsetRef = useRef<Point>({ x: 0, y: 0 });
 
@@ -39,9 +44,22 @@ const App: React.FC = () => {
     prankStateRef.current = prankState;
   }, [prankState]);
 
+  // Initial Center Position for Mobile
+  useEffect(() => {
+    if (window.innerWidth < 768) {
+        const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+        setRealMousePos(center);
+        realMousePosRef.current = center;
+        setVisualCursorPos(center);
+    }
+  }, []);
+
   // --- Handlers ---
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
+    // If joystick is being used, ignore mouse move to prevent conflict/jitter
+    if (isJoystickActiveRef.current) return;
+
     const newPos = { x: e.clientX, y: e.clientY };
     setRealMousePos(newPos);
     realMousePosRef.current = newPos;
@@ -53,6 +71,16 @@ const App: React.FC = () => {
         y: newPos.y + cursorOffsetRef.current.y
       });
     }
+  }, []);
+
+  const handleJoystickMove = useCallback((vector: Point) => {
+    joystickVectorRef.current = vector;
+    isJoystickActiveRef.current = true;
+  }, []);
+
+  const handleJoystickStop = useCallback(() => {
+    joystickVectorRef.current = { x: 0, y: 0 };
+    isJoystickActiveRef.current = false;
   }, []);
 
   const handleSuccess = useCallback(() => {
@@ -71,14 +99,18 @@ const App: React.FC = () => {
     return () => document.documentElement.removeEventListener('mouseenter', handleMouseEnter);
   }, []);
 
-  // Global click handler to support offset cursor
+  // Global click handler to support offset cursor and mobile tap
   useEffect(() => {
-    const handleClick = () => {
+    const handleClick = (e: MouseEvent) => {
+      // If clicking on joystick, don't trigger success logic check
+      if ((e.target as HTMLElement).closest('.touch-none')) return;
+
       if (isYesHovered) {
         handleSuccess();
       }
     };
     window.addEventListener('click', handleClick);
+    // Touch end on mobile often triggers click, but we'll listen to click for consistency
     return () => window.removeEventListener('click', handleClick);
   }, [isYesHovered, handleSuccess]);
 
@@ -95,6 +127,33 @@ const App: React.FC = () => {
       if (didAccept.current) return;
 
       const currentState = prankStateRef.current;
+      
+      // --- Joystick Logic ---
+      if (isJoystickActiveRef.current) {
+        const speed = 8; // Pixels per frame
+        const dx = joystickVectorRef.current.x * speed;
+        const dy = joystickVectorRef.current.y * speed;
+        
+        let newX = realMousePosRef.current.x + dx;
+        let newY = realMousePosRef.current.y + dy;
+
+        // Clamp to screen
+        newX = Math.max(0, Math.min(window.innerWidth, newX));
+        newY = Math.max(0, Math.min(window.innerHeight, newY));
+
+        const newPos = { x: newX, y: newY };
+        realMousePosRef.current = newPos;
+        setRealMousePos(newPos);
+
+        // Update visual cursor if not being pranked
+        if (currentState === PrankState.IDLE || currentState === PrankState.COOLDOWN) {
+            setVisualCursorPos({
+                x: newPos.x + cursorOffsetRef.current.x,
+                y: newPos.y + cursorOffsetRef.current.y
+            });
+        }
+      }
+
       const noBtn = noButtonRef.current;
       const yesBtn = yesButtonRef.current;
 
@@ -267,6 +326,9 @@ const App: React.FC = () => {
         state={prankState} 
       />
 
+      {/* Joystick for Mobile */}
+      <Joystick onMove={handleJoystickMove} onStop={handleJoystickStop} />
+
       {/* Main Content */}
       <main className="flex flex-col items-center justify-center min-h-screen px-4 z-10 relative">
         <div className="bg-white/80 backdrop-blur-sm p-8 rounded-3xl shadow-xl border border-white/50 max-w-md w-full text-center transform transition-transform hover:scale-[1.02]">
@@ -310,8 +372,13 @@ const App: React.FC = () => {
       </main>
 
       {/* Helper text for context if needed */}
-      <div className="absolute bottom-4 w-full text-center text-black text-sm opacity-60">
+      <div className="absolute bottom-4 w-full text-center text-black text-sm opacity-60 pointer-events-none md:block hidden">
         (Kom click "No"...)
+      </div>
+      
+      {/* Mobile Hint */}
+      <div className="absolute top-4 w-full text-center text-pink-600 text-xs font-bold md:hidden animate-pulse pointer-events-none">
+        Use joystick to move cursor & tap screen to click!
       </div>
     </div>
   );
