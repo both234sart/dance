@@ -142,7 +142,8 @@ const App: React.FC = () => {
         const isControlDisabled = currentState === PrankState.GRABBING || currentState === PrankState.DRAGGING;
         
         if (!isControlDisabled) {
-            const speed = 8;
+            // Speed depends on state: very slow (0.5) when recovering, normal (8) otherwise
+            const speed = recovering ? 0.5 : 8;
             const dx = joystickVectorRef.current.x * speed;
             const dy = joystickVectorRef.current.y * speed;
             
