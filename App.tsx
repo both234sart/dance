@@ -143,7 +143,7 @@ const App: React.FC = () => {
         
         if (!isControlDisabled) {
             // Speed depends on state: very slow (0.5) when recovering, normal (8) otherwise
-            const speed = recovering ? 0.5 : 8;
+            const speed = recovering ? 0.9 : 8;
             const dx = joystickVectorRef.current.x * speed;
             const dy = joystickVectorRef.current.y * speed;
             
@@ -251,8 +251,8 @@ const App: React.FC = () => {
         const hdx = tx - handPos.x;
         const hdy = ty - handPos.y;
 
-        const nextHandX = handPos.x + hdx * 0.02;
-        const nextHandY = handPos.y + hdy * 0.02;
+        const nextHandX = handPos.x + hdx * 0.04;
+        const nextHandY = handPos.y + hdy * 0.04;
 
         setHandPos({ x: nextHandX, y: nextHandY });
         setVisualCursorPos({ x: nextHandX, y: nextHandY });
