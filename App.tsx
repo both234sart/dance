@@ -310,7 +310,7 @@ const App: React.FC = () => {
       </main>
 
       {/* Helper text for context if needed */}
-      <div className="absolute bottom-4 w-full text-center text-gray-400 text-sm opacity-60">
+      <div className="absolute bottom-4 w-full text-center text-black text-sm opacity-60">
         (Kom click "No"...)
       </div>
     </div>
